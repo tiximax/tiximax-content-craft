@@ -217,6 +217,14 @@ Trả về dưới dạng JSON array với format:
   }
 
   private buildDetailedContentPrompt(idea: ContentIdea, request: ContentRequest): string {
+    const isWebsiteBlog = request.channel.toLowerCase().includes('website') || 
+                         request.channel.toLowerCase().includes('blog') ||
+                         request.format.toLowerCase().includes('blog');
+
+    if (isWebsiteBlog) {
+      return this.buildBlogContentPrompt(idea, request);
+    }
+
     return `
 Dựa trên ý tưởng nội dung sau cho Tiximax:
 
@@ -242,7 +250,93 @@ Hãy viết nội dung hoàn chỉnh theo cấu trúc:
 4. **Thông tin bổ trợ** (Số liệu, cam kết, lợi ích)
 5. **Call to Action** (Kêu gọi hành động mạnh mẽ)
 
-Văn phong phải tự nhiên, dễ đọc, phù hợp với ${request.channel} và ${request.format}.
+Văn phong phải tự nhiên, dễ đọi, phù hợp với ${request.channel} và ${request.format}.
+`;
+  }
+
+  private buildBlogContentPrompt(idea: ContentIdea, request: ContentRequest): string {
+    return `
+Bạn là CHUYÊN GIA CONTENT MARKETING 20 NĂM KINH NGHIỆM chuyên viết blog website chuyên nghiệp.
+
+Dựa trên ý tưởng cho Tiximax (dịch vụ mua hộ & vận chuyển quốc tế từ Indonesia, Nhật, Hàn, Mỹ về Việt Nam):
+
+**Thông tin ý tưởng:**
+- Tiêu đề: ${idea.title}
+- Mục tiêu: ${idea.objective}
+- Đối tượng: ${idea.targetSegment}
+- Insight khách hàng: ${idea.insight}
+
+**Yêu cầu bài blog:**
+- Độ dài: ${request.length}
+- Giọng điệu: ${request.tone.join(', ')}
+- Từ khóa SEO: ${request.keywords.join(', ')}
+- Ưu đãi (nếu có): ${request.promotion || 'Không có'}
+- CTA mục tiêu: ${request.cta || idea.cta}
+
+**VIẾT BÀI BLOG WEBSITE CHUẨN CHUYÊN NGHIỆP theo cấu trúc:**
+
+# [SEO-Optimized Title với từ khóa chính]
+
+## Mở bài (Introduction)
+- Hook hấp dẫn (thống kê, câu hỏi, tình huống)
+- Overview vấn đề chính
+- Promise về giá trị bài viết mang lại
+
+## Mục lục (Table of Contents) 
+[Liệt kê các phần chính trong bài]
+
+## 1. Vấn đề cốt lõi (Core Problem)
+- Phân tích sâu pain points của khách hàng
+- Số liệu, thống kê minh chứng
+- Case study/ví dụ thực tế
+
+## 2. Phân tích nguyên nhân (Root Cause Analysis)
+- Tại sao vấn đề này tồn tại
+- Các yếu tố ảnh hưởng
+- Rủi ro nếu không giải quyết
+
+## 3. Giải pháp toàn diện (Comprehensive Solution)
+- Giới thiệu giải pháp Tiximax
+- So sánh với các phương án khác
+- Lợi ích cụ thể cho từng đối tượng
+
+## 4. Hướng dẫn thực hiện (Step-by-Step Guide)
+- Quy trình chi tiết từ A-Z
+- Tips và lưu ý quan trọng
+- Kinh nghiệm thực tế
+
+## 5. Case Study và Testimonial
+- Câu chuyện thành công thực tế
+- Số liệu minh chứng ROI/hiệu quả
+- Feedback từ khách hàng
+
+## 6. FAQ (Những câu hỏi thường gặp)
+- 5-7 câu hỏi phổ biến nhất
+- Trả lời chi tiết, thực tế
+- Liên kết với dịch vụ Tiximax
+
+## Kết luận và Call-to-Action
+- Tóm tắt những điểm chính
+- Khuyến khích hành động cụ thể
+- Thông tin liên hệ rõ ràng
+
+**YÊU CẦU WRITING STYLE:**
+✅ Văn phong chuyên nghiệp nhưng dễ hiểu
+✅ Sử dụng heading structure chuẩn SEO (H1, H2, H3)
+✅ Tích hợp từ khóa tự nhiên
+✅ Bullet points và numbered lists
+✅ Bold/italic để nhấn mạnh
+✅ Độ dài đoạn văn 2-4 câu
+✅ Chèn CTA nhẹ ở giữa bài
+✅ Meta description suggestions cuối bài
+
+**TUYỆT ĐỐI TRÁNH:**
+❌ Viết như social media post
+❌ Quá nhiều emoji
+❌ Câu văn quá ngắn, thiếu chiều sâu
+❌ Thiếu cấu trúc logic
+❌ Không có data/số liệu minh chứng
+❌ CTA quá agressive hoặc quá spam
 `;
   }
 
