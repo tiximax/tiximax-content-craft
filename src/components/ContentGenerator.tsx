@@ -7,6 +7,8 @@ import { Sparkles, Wand2, Copy, Download, Settings } from 'lucide-react';
 import { ContentForm } from './ContentForm';
 import { ContentPreview } from './ContentPreview';
 import { ApiSettings } from './ApiSettings';
+import { useToast } from '@/hooks/use-toast';
+import { aiService } from '@/lib/ai-service';
 
 export interface ContentRequest {
   objective: string;
@@ -38,6 +40,7 @@ export interface GeneratedContent {
 }
 
 export const ContentGenerator: React.FC = () => {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('form');
   const [contentRequest, setContentRequest] = useState<ContentRequest | null>(null);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
@@ -49,82 +52,40 @@ export const ContentGenerator: React.FC = () => {
     setIsGenerating(true);
     
     try {
-      // Simulate AI generation - will be replaced with actual API calls
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const mockIdeas: ContentIdea[] = [
-        {
-          id: '1',
-          title: 'Bí Mật Đằng Sau Việc Mua Hàng Hàn Quốc Giá Rẻ',
-          objective: 'Tăng nhận thức về dịch vụ mua hộ Hàn Quốc',
-          targetSegment: 'Cá nhân yêu thích K-beauty và thời trang Hàn',
-          coreContent: 'Video TikTok ngắn kể chuyện một cô gái tìm được secret source để mua mỹ phẩm Hàn authentic với giá gốc...',
-          insight: 'Nỗi đau về hàng giả và giá đội cao khi mua mỹ phẩm Hàn',
-          cta: 'DM ngay để được tư vấn miễn phí',
-          channelFormat: 'TikTok Video (30s)'
-        },
-        {
-          id: '2', 
-          title: 'Tại Sao Shop Nhỏ Lại Cần Đối Tác Logistics Quốc Tế?',
-          objective: 'Thúc đẩy cân nhắc từ chủ shop SME',
-          targetSegment: 'Chủ shop online muốn mở rộng nguồn hàng',
-          coreContent: 'Bài viết blog phân tích chi phí và lợi ích khi có đối tác logistics chuyên nghiệp...',
-          insight: 'Lo ngại về chi phí và độ phức tạp khi nhập hàng quốc tế',
-          cta: 'Đăng ký nhận báo giá chi tiết',
-          channelFormat: 'Blog Article (800 từ)'
-        }
-      ];
-      
-      setGeneratedContent({ ideas: mockIdeas });
+      const ideas = await aiService.generateContentIdeas(request);
+      setGeneratedContent({ ideas });
       setActiveTab('preview');
     } catch (error) {
       console.error('Error generating content:', error);
+      toast({
+        title: "Lỗi tạo nội dung",
+        description: error instanceof Error ? error.message : "Không thể tạo ý tưởng nội dung",
+        variant: "destructive"
+      });
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleIdeaSelect = async (idea: ContentIdea) => {
+    if (!contentRequest) return;
+    
     setSelectedIdea(idea);
     setIsGenerating(true);
     
     try {
-      // Simulate detailed content generation
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const detailedContent = `
-# ${idea.title}
-
-## Hook (Câu mở đầu hấp dẫn)
-Bạn có biết rằng 90% người Việt mua mỹ phẩm Hàn Quốc online đều gặp phải ít nhất 1 trong 3 vấn đề này không?
-
-## Vấn đề (Pain Points)
-❌ Hàng giả tràn lan, không biết nguồn nào tin được
-❌ Giá bị đội lên gấp 2-3 lần so với giá gốc tại Hàn
-❌ Thời gian chờ đợi quá lâu, không rõ hàng về khi nào
-
-## Giải pháp (Tiximax Solution)
-✅ **Nguồn gốc 100% chính hãng**: Mua trực tiếp từ các cửa hàng uy tín tại Seoul
-✅ **Giá gốc + phí dịch vụ minh bạch**: Tiết kiệm 40-60% so với mua trong nước  
-✅ **Theo dõi real-time**: Biết chính xác hàng đang ở đâu, về khi nào
-
-## Thông tin bổ trợ
-📊 **Số liệu thực tế**: Tiximax đã hỗ trợ 10,000+ đơn hàng từ Hàn Quốc với tỷ lệ hài lòng 98.5%
-🏆 **Cam kết**: Hoàn tiền 100% nếu hàng không đúng như mô tả
-
-## Call to Action
-💬 **DM ngay để được tư vấn miễn phí** về dịch vụ mua hộ Hàn Quốc!
-🎁 **Ưu đãi đặc biệt**: Giảm 30% phí dịch vụ cho 100 khách hàng đầu tiên trong tháng này!
-
-#TiximaxKorea #MuaHoHanQuoc #MyPhamHan #AuthenticKBeauty
-      `;
-      
+      const detailedContent = await aiService.generateDetailedContent(idea, contentRequest);
       setGeneratedContent(prev => prev ? {
         ...prev,
         selectedContent: detailedContent
       } : null);
     } catch (error) {
       console.error('Error generating detailed content:', error);
+      toast({
+        title: "Lỗi tạo nội dung",
+        description: error instanceof Error ? error.message : "Không thể tạo nội dung chi tiết",
+        variant: "destructive"
+      });
     } finally {
       setIsGenerating(false);
     }

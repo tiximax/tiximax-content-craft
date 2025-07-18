@@ -5,170 +5,149 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Key, Zap, Brain, Shield, CheckCircle, AlertCircle, Cpu } from 'lucide-react';
+import { Settings, TestTube, CheckCircle, XCircle, Loader2, Key, Shield, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface ApiConfig {
-  openai: {
-    apiKey: string;
-    model: string;
-    temperature: number;
-  };
-  gemini: {
-    apiKey: string;
-    model: string;
-    temperature: number;
-  };
-  selectedProvider: 'openai' | 'gemini' | 'both';
-}
+import { aiService, AI_MODELS, AIConfig } from '@/lib/ai-service';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const ApiSettings: React.FC = () => {
   const { toast } = useToast();
-  const [config, setConfig] = useState<ApiConfig>({
-    openai: {
-      apiKey: '',
-      model: 'gpt-4-turbo-preview',
-      temperature: 0.7
-    },
-    gemini: {
-      apiKey: '',
-      model: 'gemini-pro',
-      temperature: 0.7
-    },
-    selectedProvider: 'both'
-  });
-  
-  const [isTestingOpenAI, setIsTestingOpenAI] = useState(false);
-  const [isTestingGemini, setIsTestingGemini] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<{
-    openai: 'idle' | 'success' | 'error';
-    gemini: 'idle' | 'success' | 'error';
-  }>({
-    openai: 'idle',
-    gemini: 'idle'
-  });
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [geminiKey, setGeminiKey] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini'>('openai');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [testResults, setTestResults] = useState<{
+    openai?: { status: 'success' | 'error' | 'testing'; message: string };
+    gemini?: { status: 'success' | 'error' | 'testing'; message: string };
+  }>({});
 
-  // Load config from localStorage on mount
+  // Load saved settings
   useEffect(() => {
-    const savedConfig = localStorage.getItem('tiximax-ai-config');
+    const savedConfig = localStorage.getItem('ai-config');
     if (savedConfig) {
       try {
-        const parsed = JSON.parse(savedConfig);
-        setConfig(parsed);
+        const config: AIConfig = JSON.parse(savedConfig);
+        setSelectedProvider(config.provider);
+        setSelectedModel(config.model);
+        if (config.provider === 'openai') {
+          setOpenaiKey(config.apiKey);
+        } else {
+          setGeminiKey(config.apiKey);
+        }
+        aiService.setConfig(config);
       } catch (error) {
-        console.error('Error parsing saved config:', error);
+        console.error('Failed to load AI config:', error);
       }
     }
   }, []);
 
-  const saveConfig = () => {
-    localStorage.setItem('tiximax-ai-config', JSON.stringify(config));
+  // Set default model when provider changes
+  useEffect(() => {
+    if (selectedProvider === 'openai' && !selectedModel) {
+      setSelectedModel('gpt-4.1-2025-04-14');
+    } else if (selectedProvider === 'gemini' && !selectedModel) {
+      setSelectedModel('gemini-2.0-flash-exp');
+    }
+  }, [selectedProvider, selectedModel]);
+
+  const handleSaveConfig = () => {
+    const currentKey = selectedProvider === 'openai' ? openaiKey : geminiKey;
+    
+    if (!currentKey || !selectedModel) {
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng điền API key và chọn model",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const config: AIConfig = {
+      provider: selectedProvider,
+      model: selectedModel,
+      apiKey: currentKey
+    };
+
+    localStorage.setItem('ai-config', JSON.stringify(config));
+    aiService.setConfig(config);
+    
     toast({
-      title: "Đã lưu cấu hình!",
-      description: "Cài đặt API đã được lưu trữ an toàn.",
+      title: "Đã lưu cấu hình",
+      description: `Sử dụng ${AI_MODELS[selectedProvider][selectedModel as keyof typeof AI_MODELS[typeof selectedProvider]]}`,
     });
   };
 
-  const testOpenAIConnection = async () => {
-    if (!config.openai.apiKey) {
+  const handleTestConnection = async () => {
+    const currentKey = selectedProvider === 'openai' ? openaiKey : geminiKey;
+    
+    if (!currentKey || !selectedModel) {
       toast({
-        title: "Thiếu API Key",
-        description: "Vui lòng nhập OpenAI API Key trước khi test.",
+        title: "Thiếu thông tin",
+        description: "Vui lòng điền API key và chọn model trước khi test",
         variant: "destructive"
       });
       return;
     }
 
-    setIsTestingOpenAI(true);
-    try {
-      const response = await fetch('https://api.openai.com/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${config.openai.apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    setIsTestingConnection(true);
+    setTestResults(prev => ({
+      ...prev,
+      [selectedProvider]: { status: 'testing', message: 'Đang kiểm tra kết nối...' }
+    }));
 
-      if (response.ok) {
-        setConnectionStatus(prev => ({ ...prev, openai: 'success' }));
+    // Configure AI service for testing
+    aiService.setConfig({
+      provider: selectedProvider,
+      model: selectedModel,
+      apiKey: currentKey
+    });
+
+    try {
+      const result = await aiService.testConnection();
+      setTestResults(prev => ({
+        ...prev,
+        [selectedProvider]: { 
+          status: result.success ? 'success' : 'error', 
+          message: result.message 
+        }
+      }));
+
+      if (result.success) {
         toast({
-          title: "Kết nối thành công!",
-          description: "OpenAI API hoạt động bình thường.",
+          title: "Kết nối thành công",
+          description: result.message,
         });
       } else {
-        throw new Error('API call failed');
-      }
-    } catch (error) {
-      setConnectionStatus(prev => ({ ...prev, openai: 'error' }));
-      toast({
-        title: "Kết nối thất bại",
-        description: "Không thể kết nối với OpenAI API. Vui lòng kiểm tra lại API Key.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsTestingOpenAI(false);
-    }
-  };
-
-  const testGeminiConnection = async () => {
-    if (!config.gemini.apiKey) {
-      toast({
-        title: "Thiếu API Key",
-        description: "Vui lòng nhập Gemini API Key trước khi test.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsTestingGemini(true);
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${config.gemini.apiKey}`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        setConnectionStatus(prev => ({ ...prev, gemini: 'success' }));
         toast({
-          title: "Kết nối thành công!",
-          description: "Gemini API hoạt động bình thường.",
+          title: "Kết nối thất bại",
+          description: result.message,
+          variant: "destructive"
         });
-      } else {
-        throw new Error('API call failed');
       }
     } catch (error) {
-      setConnectionStatus(prev => ({ ...prev, gemini: 'error' }));
-      toast({
-        title: "Kết nối thất bại",
-        description: "Không thể kết nối với Gemini API. Vui lòng kiểm tra lại API Key.",
-        variant: "destructive"
-      });
+      setTestResults(prev => ({
+        ...prev,
+        [selectedProvider]: { 
+          status: 'error', 
+          message: 'Lỗi không xác định' 
+        }
+      }));
     } finally {
-      setIsTestingGemini(false);
+      setIsTestingConnection(false);
     }
   };
 
-  const getStatusIcon = (status: 'idle' | 'success' | 'error') => {
+  const getStatusIcon = (status?: 'success' | 'error' | 'testing') => {
     switch (status) {
       case 'success':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'testing':
+        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
       default:
-        return <Shield className="w-4 h-4 text-muted-foreground" />;
-    }
-  };
-
-  const getStatusColor = (status: 'idle' | 'success' | 'error') => {
-    switch (status) {
-      case 'success':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'error':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return <Shield className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -182,7 +161,7 @@ export const ApiSettings: React.FC = () => {
             Cài đặt AI & API
           </CardTitle>
           <CardDescription>
-            Cấu hình kết nối với OpenAI và Gemini để tạo nội dung chất lượng cao
+            Cấu hình kết nối với OpenAI và Gemini để tạo nội dung chất lượng cao với các model mới nhất
           </CardDescription>
         </CardHeader>
       </Card>
@@ -191,278 +170,167 @@ export const ApiSettings: React.FC = () => {
       <Alert>
         <Shield className="h-4 w-4" />
         <AlertDescription>
-          <strong>Bảo mật:</strong> API Keys được lưu trữ cục bộ trên trình duyệt của bạn và không được gửi đến server nào khác. 
+          <strong>Bảo mật:</strong> API Keys được lưu trữ cục bộ trên trình duyệt và không gửi đến server. 
           Để bảo mật tối đa, hãy xóa API Keys khi không sử dụng.
         </AlertDescription>
       </Alert>
 
-      {/* Provider Selection */}
-      <Card className="shadow-card">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Provider Selection */}
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="provider">Chọn AI Provider</Label>
+            <Select value={selectedProvider} onValueChange={(value: 'openai' | 'gemini') => setSelectedProvider(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="gemini">Google Gemini</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="model">Chọn Model</Label>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn model" />
+              </SelectTrigger>
+              <SelectContent>
+                {selectedProvider === 'openai' ? (
+                  Object.entries(AI_MODELS.openai).map(([key, name]) => (
+                    <SelectItem key={key} value={key}>{name}</SelectItem>
+                  ))
+                ) : (
+                  Object.entries(AI_MODELS.gemini).map(([key, name]) => (
+                    <SelectItem key={key} value={key}>{name}</SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* API Key Input */}
+        <div className="space-y-4">
+          {selectedProvider === 'openai' ? (
+            <div>
+              <Label htmlFor="openai-key">OpenAI API Key</Label>
+              <Input
+                id="openai-key"
+                type="password"
+                placeholder="sk-..."
+                value={openaiKey}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Lấy API Key tại <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenAI Platform</a>
+              </p>
+              
+              <div className="mt-3">
+                <Button 
+                  onClick={handleTestConnection}
+                  disabled={!openaiKey || isTestingConnection}
+                  className="w-full"
+                >
+                  {isTestingConnection ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <TestTube className="mr-2 h-4 w-4" />
+                  )}
+                  Test Connection
+                </Button>
+                
+                {testResults.openai && (
+                  <div className="flex items-center space-x-2 mt-2">
+                    {getStatusIcon(testResults.openai.status)}
+                    <span className="text-sm">{testResults.openai.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Label htmlFor="gemini-key">Gemini API Key</Label>
+              <Input
+                id="gemini-key"
+                type="password"
+                placeholder="AI..."
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Lấy API Key tại <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
+              </p>
+              
+              <div className="mt-3">
+                <Button 
+                  onClick={handleTestConnection}
+                  disabled={!geminiKey || isTestingConnection}
+                  className="w-full"
+                >
+                  {isTestingConnection ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <TestTube className="mr-2 h-4 w-4" />
+                  )}
+                  Test Connection
+                </Button>
+                
+                {testResults.gemini && (
+                  <div className="flex items-center space-x-2 mt-2">
+                    {getStatusIcon(testResults.gemini.status)}
+                    <span className="text-sm">{testResults.gemini.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Save Configuration */}
+        <div className="md:col-span-2">
+          <Button 
+            onClick={handleSaveConfig}
+            className="w-full"
+            variant="default"
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Lưu cấu hình AI
+          </Button>
+        </div>
+      </div>
+
+      {/* Model Information */}
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Brain className="w-5 h-5 text-primary" />
-            Lựa chọn nhà cung cấp AI
+            <Key className="w-5 h-5 text-primary" />
+            Thông tin Models
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <Label>Sử dụng AI Provider nào để tạo nội dung?</Label>
-            <Select 
-              value={config.selectedProvider} 
-              onValueChange={(value: 'openai' | 'gemini' | 'both') => 
-                setConfig(prev => ({ ...prev, selectedProvider: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="openai">Chỉ OpenAI GPT</SelectItem>
-                <SelectItem value="gemini">Chỉ Google Gemini</SelectItem>
-                <SelectItem value="both">Cả hai (Đề xuất)</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {config.selectedProvider === 'both' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Khuyến nghị:</strong> Sử dụng cả hai AI sẽ cho kết quả đa dạng và chất lượng tốt nhất. 
-                  OpenAI tốt cho nội dung marketing, Gemini mạnh về phân tích insight khách hàng.
-                </p>
-              </div>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <h4 className="font-semibold mb-2">OpenAI Models:</h4>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>• <strong>GPT-4.1</strong>: Model mới nhất với hiệu suất tốt nhất</li>
+                <li>• <strong>o4-mini</strong>: Reasoning model nhanh và hiệu quả</li>
+                <li>• <strong>GPT-4o</strong>: Hỗ trợ vision và multimodal</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">Gemini Models:</h4>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>• <strong>Gemini 2.0 Flash</strong>: Model experimental mới nhất</li>
+                <li>• <strong>Gemini 1.5 Pro</strong>: Hiệu suất cao, context lớn</li>
+                <li>• <strong>Gemini 1.5 Flash</strong>: Nhanh và hiệu quả</li>
+              </ul>
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* API Configuration */}
-      <Tabs defaultValue="openai" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="openai" className="flex items-center gap-2">
-            <Cpu className="w-4 h-4" />
-            OpenAI
-          </TabsTrigger>
-          <TabsTrigger value="gemini" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            Gemini
-          </TabsTrigger>
-        </TabsList>
-
-        {/* OpenAI Configuration */}
-        <TabsContent value="openai">
-          <Card className="shadow-card">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="w-5 h-5 text-primary" />
-                    OpenAI Configuration
-                  </CardTitle>
-                  <CardDescription>
-                    Cấu hình kết nối với OpenAI GPT API
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(connectionStatus.openai)}
-                  <Badge className={getStatusColor(connectionStatus.openai)}>
-                    {connectionStatus.openai === 'success' ? 'Đã kết nối' : 
-                     connectionStatus.openai === 'error' ? 'Lỗi kết nối' : 'Chưa test'}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="openai-key">API Key</Label>
-                <Input
-                  id="openai-key"
-                  type="password"
-                  placeholder="sk-..."
-                  value={config.openai.apiKey}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    openai: { ...prev.openai, apiKey: e.target.value }
-                  }))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Lấy API Key tại <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenAI Platform</a>
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="openai-model">Model</Label>
-                  <Select 
-                    value={config.openai.model}
-                    onValueChange={(value) => setConfig(prev => ({
-                      ...prev,
-                      openai: { ...prev.openai, model: value }
-                    }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="gpt-4-turbo-preview">GPT-4 Turbo (Đề xuất)</SelectItem>
-                      <SelectItem value="gpt-4">GPT-4</SelectItem>
-                      <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="openai-temp">Temperature: {config.openai.temperature}</Label>
-                  <Input
-                    id="openai-temp"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={config.openai.temperature}
-                    onChange={(e) => setConfig(prev => ({
-                      ...prev,
-                      openai: { ...prev.openai, temperature: parseFloat(e.target.value) }
-                    }))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    0.0 = Chính xác, 1.0 = Sáng tạo
-                  </p>
-                </div>
-              </div>
-
-              <Button 
-                onClick={testOpenAIConnection}
-                disabled={isTestingOpenAI || !config.openai.apiKey}
-                variant="outline"
-                className="w-full"
-              >
-                {isTestingOpenAI ? (
-                  <>
-                    <Settings className="w-4 h-4 animate-spin mr-2" />
-                    Đang test kết nối...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Test kết nối OpenAI
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Gemini Configuration */}
-        <TabsContent value="gemini">
-          <Card className="shadow-card">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="w-5 h-5 text-primary" />
-                    Gemini Configuration
-                  </CardTitle>
-                  <CardDescription>
-                    Cấu hình kết nối với Google Gemini API
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(connectionStatus.gemini)}
-                  <Badge className={getStatusColor(connectionStatus.gemini)}>
-                    {connectionStatus.gemini === 'success' ? 'Đã kết nối' : 
-                     connectionStatus.gemini === 'error' ? 'Lỗi kết nối' : 'Chưa test'}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="gemini-key">API Key</Label>
-                <Input
-                  id="gemini-key"
-                  type="password"
-                  placeholder="AI..."
-                  value={config.gemini.apiKey}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    gemini: { ...prev.gemini, apiKey: e.target.value }
-                  }))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Lấy API Key tại <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="gemini-model">Model</Label>
-                  <Select 
-                    value={config.gemini.model}
-                    onValueChange={(value) => setConfig(prev => ({
-                      ...prev,
-                      gemini: { ...prev.gemini, model: value }
-                    }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="gemini-pro">Gemini Pro (Đề xuất)</SelectItem>
-                      <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="gemini-temp">Temperature: {config.gemini.temperature}</Label>
-                  <Input
-                    id="gemini-temp"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={config.gemini.temperature}
-                    onChange={(e) => setConfig(prev => ({
-                      ...prev,
-                      gemini: { ...prev.gemini, temperature: parseFloat(e.target.value) }
-                    }))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    0.0 = Chính xác, 1.0 = Sáng tạo
-                  </p>
-                </div>
-              </div>
-
-              <Button 
-                onClick={testGeminiConnection}
-                disabled={isTestingGemini || !config.gemini.apiKey}
-                variant="outline"
-                className="w-full"
-              >
-                {isTestingGemini ? (
-                  <>
-                    <Settings className="w-4 h-4 animate-spin mr-2" />
-                    Đang test kết nối...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Test kết nối Gemini
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Save Button */}
-      <div className="flex justify-center">
-        <Button onClick={saveConfig} variant="hero" size="lg" className="px-8">
-          <Settings className="w-5 h-5 mr-2" />
-          Lưu cấu hình
-        </Button>
-      </div>
     </div>
   );
 };

@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles, Target, Users, MessageSquare, FileText, Clock, Megaphone } from 'lucide-react';
 import { ContentRequest } from './ContentGenerator';
+import { useToast } from '@/hooks/use-toast';
 
 interface ContentFormProps {
   onSubmit: (request: ContentRequest) => void;
@@ -16,6 +17,7 @@ interface ContentFormProps {
 }
 
 export const ContentForm: React.FC<ContentFormProps> = ({ onSubmit, isLoading }) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState<ContentRequest>({
     objective: '',
     stage: '',
@@ -102,6 +104,17 @@ export const ContentForm: React.FC<ContentFormProps> = ({ onSubmit, isLoading })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.objective || !formData.stage || !formData.channel || !formData.format || !formData.length) {
+      toast({
+        title: "Vui lòng điền đầy đủ thông tin",
+        description: "Tất cả các trường bắt buộc cần được điền",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     onSubmit(formData);
   };
 
