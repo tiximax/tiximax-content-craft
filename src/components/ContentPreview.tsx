@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Copy, Download, Eye, Lightbulb, Target, Users, MessageSquare, ArrowRight, Image } from 'lucide-react';
+import { Loader2, Copy, Download, Eye, Lightbulb, Target, Users, MessageSquare, ArrowRight, Image, Zap } from 'lucide-react';
 import { ContentRequest, ContentIdea, GeneratedContent } from './ContentGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { aiService } from '@/lib/ai-service';
@@ -26,6 +26,9 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
   const { toast } = useToast();
   const [isGeneratingImage, setIsGeneratingImage] = React.useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = React.useState<string | null>(null);
+  const [isBulkGenerating, setIsBulkGenerating] = React.useState(false);
+  const [bulkContent, setBulkContent] = React.useState<{ [key: string]: string }>({});
+  const [showBulkResults, setShowBulkResults] = React.useState(false);
 
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
@@ -73,6 +76,30 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
       });
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  const handleBulkGenerate = async () => {
+    if (!generatedContent?.ideas || !contentRequest) return;
+    
+    setIsBulkGenerating(true);
+    try {
+      const results = await aiService.generateBulkContent(generatedContent.ideas, contentRequest);
+      setBulkContent(results);
+      setShowBulkResults(true);
+      
+      toast({
+        title: "Tạo nội dung đồng loạt thành công!",
+        description: `Đã tạo ${Object.keys(results).length} nội dung hoàn thiện.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Lỗi tạo nội dung đồng loạt",
+        description: error instanceof Error ? error.message : "Không thể tạo nội dung",
+        variant: "destructive"
+      });
+    } finally {
+      setIsBulkGenerating(false);
     }
   };
 
@@ -137,13 +164,36 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
       {generatedContent && !generatedContent.selectedContent && (
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="w-5 h-5 text-primary" />
-              Ý tưởng nội dung được đề xuất
-            </CardTitle>
-            <CardDescription>
-              AI đã phân tích insight khách hàng và đề xuất các ý tưởng phù hợp. Chọn một ý tưởng để tạo nội dung chi tiết.
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5 text-primary" />
+                  Ý tưởng nội dung được đề xuất
+                </CardTitle>
+                <CardDescription>
+                  AI đã phân tích insight khách hàng và đề xuất các ý tưởng phù hợp. Chọn một ý tưởng để tạo nội dung chi tiết.
+                </CardDescription>
+              </div>
+              <Button 
+                variant="hero"
+                size="sm"
+                onClick={handleBulkGenerate}
+                disabled={isBulkGenerating || isLoading}
+                className="px-4 py-2"
+              >
+                {isBulkGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Đang tạo...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Tạo đồng loạt
+                  </>
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -271,6 +321,60 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                   {generatedContent.selectedContent}
                 </pre>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Bulk Generated Content */}
+      {showBulkResults && Object.keys(bulkContent).length > 0 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary" />
+              Nội dung được tạo đồng loạt
+            </CardTitle>
+            <CardDescription>
+              Tất cả {Object.keys(bulkContent).length} ý tưởng đã được tạo thành nội dung hoàn thiện.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {generatedContent?.ideas.map((idea) => {
+                const content = bulkContent[idea.id];
+                if (!content) return null;
+                
+                return (
+                  <div key={idea.id} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-lg text-primary">{idea.title}</h4>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleCopy(content)}
+                        >
+                          <Copy className="w-4 h-4 mr-2" />
+                          Sao chép
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownload(content, `${idea.title.replace(/[^a-zA-Z0-9]/g, '-')}.txt`)}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Tải xuống
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="bg-muted/30 rounded-lg p-4 border max-h-96 overflow-y-auto">
+                      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                        {content}
+                      </pre>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

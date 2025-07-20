@@ -59,6 +59,7 @@ export const ContentForm: React.FC<ContentFormProps> = ({ onSubmit, isLoading })
     'Video ngắn (dưới 30s)',
     'Bài Post dài (Facebook)',
     'Bài Blog chuyên sâu (500-800 từ)',
+    'Blog Website SEO 2000+ từ (Chuyên gia)',
     'Infographic',
     'Livestream Script',
     'Email Marketing',
@@ -218,6 +219,7 @@ export const ContentForm: React.FC<ContentFormProps> = ({ onSubmit, isLoading })
                   <SelectItem value="short">Ngắn (dưới 150 từ)</SelectItem>
                   <SelectItem value="medium">Trung bình (300-500 từ)</SelectItem>
                   <SelectItem value="long">Dài (trên 800 từ)</SelectItem>
+                  <SelectItem value="seo-expert">SEO Expert (2000+ từ)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

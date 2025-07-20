@@ -249,6 +249,144 @@ Văn phong phải tự nhiên, dễ đọi, phù hợp với ${request.channel} 
   }
 
   private buildBlogContentPrompt(idea: ContentIdea, request: ContentRequest): string {
+    const isExpertSEO = request.length === 'seo-expert' || request.format.toLowerCase().includes('seo 2000+');
+    
+    if (isExpertSEO) {
+      return `
+Bạn là CHUYÊN GIA SEO TOP GOOGLE HÀNG ĐẦU với 20 NĂM KINH NGHIỆM trong việc viết blog website ranking #1 trên Google.
+
+Tôi cần bạn viết một bài blog CỰC KỲ CHUYÊN NGHIỆP, dài 2000+ từ cho Tiximax (dịch vụ mua hộ & vận chuyển quốc tế từ Indonesia, Nhật, Hàn, Mỹ về Việt Nam):
+
+**Thông tin ý tưởng:**
+- Tiêu đề: ${idea.title}
+- Mục tiêu: ${idea.objective}
+- Đối tượng: ${idea.targetSegment}
+- Insight khách hàng: ${idea.insight}
+
+**Yêu cầu SEO EXPERT:**
+- Độ dài: TỐI THIỂU 2000 từ (không ít hơn)
+- Giọng điệu: ${request.tone.join(', ')}
+- Từ khóa SEO chính: ${request.keywords.join(', ')}
+- Ưu đãi: ${request.promotion || 'Không có'}
+- CTA mục tiêu: ${request.cta || idea.cta}
+
+**VIẾT BÀI BLOG CHUẨN SEO EXPERT LEVEL:**
+
+# [Tiêu đề SEO-Optimized với từ khóa chính - Long-tail keywords]
+
+*Meta Description: [Viết meta description 150-160 ký tự hấp dẫn với từ khóa chính]*
+
+## Mở bài (Introduction) - 200 từ
+- Hook cực kỳ hấp dẫn (số liệu shock, câu hỏi đau điểm, tình huống viral)
+- Tóm tắt vấn đề và pain points
+- Promise rõ ràng về giá trị bài viết
+- Chèn từ khóa chính tự nhiên
+
+## Mục lục (Table of Contents)
+[Liệt kê chi tiết tất cả sections với anchor links]
+
+## 1. Thực trạng thị trường và vấn đề cốt lõi (300-400 từ)
+- Phân tích sâu thị trường mua hộ quốc tế tại Việt Nam
+- Số liệu thống kê cụ thể (tỷ lệ %, doanh số, khảo sát)
+- Pain points chi tiết từ khảo sát thực tế
+- Case study thất bại điển hình
+- **[CTA nhẹ giữa bài: "Tìm hiểu giải pháp hiệu quả"]**
+
+## 2. Phân tích nguyên nhân sâu xa (350-400 từ)
+- Root cause analysis từ 5 góc độ
+- Rào cản ngôn ngữ và văn hóa
+- Vấn đề pháp lý và thủ tục hải quan
+- Chi phí ẩn và minh bạch
+- Reliability và timing issues
+- So sánh với thị trường quốc tế (Singapore, Malaysia)
+
+## 3. Giải pháp toàn diện và competitive advantages (400-500 từ)
+- Giới thiệu Tiximax với USP rõ ràng
+- So sánh chi tiết với 3-4 competitors lớn (bảng so sánh)
+- Pricing transparency với breakdown chi phí
+- Technology stack và tracking system
+- Quality assurance process
+- Customer service model
+
+## 4. Hướng dẫn sử dụng dịch vụ A-Z (400-500 từ)
+- Step-by-step guide với screenshots
+- Tips để tối ưu chi phí và thời gian
+- Những lưu ý quan trọng cho từng thị trường (Nhật, Hàn, Indonesia, Mỹ)
+- Best practices từ expert team
+- Common mistakes và cách tránh
+
+## 5. Case Studies thực tế và ROI Analysis (300-400 từ)
+- 3-4 case studies chi tiết với số liệu cụ thể
+- ROI calculation cho từng segment khách hàng
+- Testimonials với tên thật và business cụ thể
+- Before/After comparison rõ ràng
+- Impact measurement và success metrics
+
+## 6. Advanced Tips cho Power Users (200-300 từ)
+- Pro tips cho bulk orders
+- Seasonal timing optimization
+- Currency exchange strategies
+- Tax implications và legal compliance
+- Scaling strategies cho businesses
+
+## 7. FAQ chuyên sâu (300-400 từ)
+- 8-10 câu hỏi phức tạp từ thực tế
+- Trả lời chi tiết với legal backing
+- Links tới resources và guidelines
+- Troubleshooting common issues
+
+## 8. Xu hướng tương lai và strategic insights (200-300 từ)
+- Market trend analysis 2024-2025
+- Technology evolution (AI, blockchain)
+- Regulatory changes impact
+- Opportunities và challenges
+
+## Kết luận và Call-to-Action mạnh mẽ (150-200 từ)
+- Recap key takeaways
+- ROI promise cụ thể
+- Multiple CTAs cho different customer segments
+- Contact information và channels
+- Limited-time offer/bonus
+
+## Additional Resources (100 từ)
+- Related articles internal linking
+- External authority links
+- Tools và calculators
+- Downloads và templates
+
+**TECHNICAL SEO REQUIREMENTS:**
+🎯 Keyword density: 1-2% cho primary keyword
+🎯 LSI keywords: Sử dụng 15-20 related keywords tự nhiên
+🎯 Heading structure: Proper H1, H2, H3 hierarchy
+🎯 Internal links: 5-8 links tới related content
+🎯 External links: 3-5 authority links
+🎯 Image suggestions: 8-10 images với alt text
+🎯 Schema markup: FAQ, Article, Organization
+🎯 Mobile optimization: Tối ưu cho mobile reading
+
+**CONTENT QUALITY STANDARDS:**
+✅ Expertise: Thể hiện deep knowledge với data cụ thể
+✅ Authority: Cite sources và industry reports
+✅ Trustworthiness: Transparency và honest approach
+✅ User Intent: Giải quyết hoàn toàn search intent
+✅ Uniqueness: Góc nhìn độc đáo với insights mới
+✅ Actionability: Practical steps người đọc có thể thực hiện
+✅ Comprehensiveness: Cover tất cả aspects của topic
+
+**WRITING STYLE EXPERT:**
+🔥 Hook readers với controversy hoặc surprising facts
+🔥 Sử dụng power words và emotional triggers
+🔥 Bullet points và numbered lists cho scannability
+🔥 Bold/italic cho key points và statistics
+🔥 Short paragraphs (2-3 sentences) cho mobile UX
+🔥 Conversational tone nhưng professional
+🔥 Storytelling elements với real scenarios
+🔥 Data-driven arguments với credible sources
+
+LƯU Ý QUAN TRỌNG: Bài viết PHẢI đạt tối thiểu 2000 từ và thể hiện level chuyên gia SEO hàng đầu!
+`;
+    }
+
     return `
 Bạn là CHUYÊN GIA CONTENT MARKETING 20 NĂM KINH NGHIỆM chuyên viết blog website chuyên nghiệp.
 
@@ -461,6 +599,34 @@ Bạn có biết rằng 90% người Việt mua hàng quốc tế online đều 
       console.error('Image generation error:', error);
       throw new Error('Không thể tạo ảnh. Vui lòng thử lại.');
     }
+  }
+
+  async generateBulkContent(ideas: ContentIdea[], request: ContentRequest): Promise<{ [key: string]: string }> {
+    if (!this.config?.apiKey) {
+      throw new Error('Vui lòng cấu hình API key trong phần Settings trước');
+    }
+
+    const results: { [key: string]: string } = {};
+    
+    // Tạo tất cả content đồng loạt với Promise.all
+    const contentPromises = ideas.map(async (idea) => {
+      try {
+        const content = await this.generateDetailedContent(idea, request);
+        return { id: idea.id, content };
+      } catch (error) {
+        console.error(`Failed to generate content for idea ${idea.id}:`, error);
+        return { id: idea.id, content: `Lỗi tạo nội dung: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      }
+    });
+
+    const contentResults = await Promise.all(contentPromises);
+    
+    // Gộp kết quả vào object
+    contentResults.forEach(result => {
+      results[result.id] = result.content;
+    });
+
+    return results;
   }
 }
 
