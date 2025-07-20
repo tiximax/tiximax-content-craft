@@ -64,10 +64,7 @@ export class AIService {
 
   async generateContentIdeas(request: ContentRequest): Promise<ContentIdea[]> {
     if (!this.config?.apiKey) {
-      // Return mock data for development
-      return new Promise(resolve => {
-        setTimeout(() => resolve(MOCK_IDEAS), 2000);
-      });
+      throw new Error('Vui lòng cấu hình API key trong phần Settings trước');
     }
 
     const prompt = this.buildIdeaGenerationPrompt(request);
@@ -86,10 +83,7 @@ export class AIService {
 
   async generateDetailedContent(idea: ContentIdea, request: ContentRequest): Promise<string> {
     if (!this.config?.apiKey) {
-      // Return mock detailed content
-      return new Promise(resolve => {
-        setTimeout(() => resolve(this.getMockDetailedContent(idea)), 1500);
-      });
+      throw new Error('Vui lòng cấu hình API key trong phần Settings trước');
     }
 
     const prompt = this.buildDetailedContentPrompt(idea, request);
@@ -429,6 +423,43 @@ Bạn có biết rằng 90% người Việt mua hàng quốc tế online đều 
       }
     } catch (error) {
       return { success: false, message: `Lỗi kết nối: ${error instanceof Error ? error.message : 'Unknown error'}` };
+    }
+  }
+
+  async generateContentImage(prompt: string): Promise<string> {
+    if (!this.config?.apiKey) {
+      throw new Error('Vui lòng cấu hình API key trong phần Settings trước');
+    }
+
+    if (this.config.provider !== 'openai') {
+      throw new Error('Tạo ảnh chỉ hỗ trợ với OpenAI');
+    }
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt: `Create a professional image for content marketing: ${prompt}. Make it visually appealing, modern, and suitable for logistics/e-commerce business.`,
+          n: 1,
+          size: '1024x1024',
+          quality: 'standard'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI Image API Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.data[0].url;
+    } catch (error) {
+      console.error('Image generation error:', error);
+      throw new Error('Không thể tạo ảnh. Vui lòng thử lại.');
     }
   }
 }

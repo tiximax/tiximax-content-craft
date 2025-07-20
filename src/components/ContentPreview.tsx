@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Copy, Download, Eye, Lightbulb, Target, Users, MessageSquare, ArrowRight } from 'lucide-react';
+import { Loader2, Copy, Download, Eye, Lightbulb, Target, Users, MessageSquare, ArrowRight, Image } from 'lucide-react';
 import { ContentRequest, ContentIdea, GeneratedContent } from './ContentGenerator';
 import { useToast } from '@/hooks/use-toast';
+import { aiService } from '@/lib/ai-service';
 
 interface ContentPreviewProps {
   contentRequest: ContentRequest | null;
@@ -23,6 +24,8 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
   onIdeaSelect
 }) => {
   const { toast } = useToast();
+  const [isGeneratingImage, setIsGeneratingImage] = React.useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = React.useState<string | null>(null);
 
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
@@ -47,6 +50,30 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
       title: "Đã tải xuống!",
       description: "File nội dung đã được tải về máy.",
     });
+  };
+
+  const handleGenerateImage = async () => {
+    if (!selectedIdea) return;
+    
+    setIsGeneratingImage(true);
+    try {
+      const imagePrompt = `${selectedIdea.title} - ${selectedIdea.coreContent}`;
+      const imageUrl = await aiService.generateContentImage(imagePrompt);
+      setGeneratedImageUrl(imageUrl);
+      
+      toast({
+        title: "Tạo ảnh thành công!",
+        description: "Ảnh minh họa cho nội dung đã được tạo.",
+      });
+    } catch (error) {
+      toast({
+        title: "Lỗi tạo ảnh",
+        description: error instanceof Error ? error.message : "Không thể tạo ảnh",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingImage(false);
+    }
   };
 
   if (!contentRequest) {
@@ -205,14 +232,45 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                   <Download className="w-4 h-4 mr-2" />
                   Tải xuống
                 </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleGenerateImage}
+                  disabled={isGeneratingImage}
+                >
+                  {isGeneratingImage ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Image className="w-4 h-4 mr-2" />
+                  )}
+                  Tạo ảnh
+                </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="bg-muted/30 rounded-lg p-6 border">
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                {generatedContent.selectedContent}
-              </pre>
+            <div className="space-y-6">
+              {/* Generated Image */}
+              {generatedImageUrl && (
+                <div className="bg-muted/30 rounded-lg p-4 border">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Image className="w-4 h-4" />
+                    Ảnh minh họa được tạo bởi AI
+                  </h4>
+                  <img 
+                    src={generatedImageUrl} 
+                    alt="AI Generated Content Image"
+                    className="w-full max-w-md mx-auto rounded-lg shadow-md"
+                  />
+                </div>
+              )}
+              
+              {/* Generated Content */}
+              <div className="bg-muted/30 rounded-lg p-6 border">
+                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                  {generatedContent.selectedContent}
+                </pre>
+              </div>
             </div>
           </CardContent>
         </Card>
