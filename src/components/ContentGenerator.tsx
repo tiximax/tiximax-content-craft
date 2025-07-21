@@ -7,6 +7,7 @@ import { Sparkles, Wand2, Copy, Download, Settings } from 'lucide-react';
 import { ContentForm } from './ContentForm';
 import { ContentPreview } from './ContentPreview';
 import { ApiSettings } from './ApiSettings';
+import { ChannelManager } from './ChannelManager';
 import { useToast } from '@/hooks/use-toast';
 import { aiService } from '@/lib/ai-service';
 
@@ -120,7 +121,7 @@ export const ContentGenerator: React.FC = () => {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="form" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               Thiết lập nội dung
@@ -128,6 +129,10 @@ export const ContentGenerator: React.FC = () => {
             <TabsTrigger value="preview" className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               Preview & Chỉnh sửa
+            </TabsTrigger>
+            <TabsTrigger value="channels" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Quản lý kênh
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Wand2 className="w-4 h-4" />
@@ -154,6 +159,9 @@ export const ContentGenerator: React.FC = () => {
 
           <TabsContent value="settings">
             <ApiSettings />
+          </TabsContent>
+          <TabsContent value="channels">
+            <ChannelManager />
           </TabsContent>
         </Tabs>
       </div>

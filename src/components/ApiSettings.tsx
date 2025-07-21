@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Settings, TestTube, CheckCircle, XCircle, Loader2, Key, Shield, AlertCircle } from 'lucide-react';
+import { Settings, TestTube, CheckCircle, XCircle, Loader2, Key, Shield, AlertCircle, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { aiService, AI_MODELS, AIConfig } from '@/lib/ai-service';
+import { enhancedAIService, AI_MODELS_ENHANCED, EnhancedAIConfig } from '@/lib/ai-service-enhanced';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const ApiSettings: React.FC = () => {
@@ -16,6 +17,9 @@ export const ApiSettings: React.FC = () => {
   const [geminiKey, setGeminiKey] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini'>('openai');
   const [selectedModel, setSelectedModel] = useState('');
+  const [useEnhancedMode, setUseEnhancedMode] = useState(true);
+  const [geminiModel, setGeminiModel] = useState('gemini-2.0-flash-exp');
+  const [openaiModel, setOpenaiModel] = useState('gpt-4.1-2025-04-14');
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [testResults, setTestResults] = useState<{
     openai?: { status: 'success' | 'error' | 'testing'; message: string };
