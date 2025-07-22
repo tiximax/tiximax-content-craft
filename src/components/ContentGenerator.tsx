@@ -9,7 +9,7 @@ import { ContentPreview } from './ContentPreview';
 import { ApiSettings } from './ApiSettings';
 import { ChannelManager } from './ChannelManager';
 import { useToast } from '@/hooks/use-toast';
-import { aiService } from '@/lib/ai-service';
+import { enhancedAIService } from '@/lib/ai-service-enhanced';
 
 export interface ContentRequest {
   objective: string;
@@ -37,7 +37,7 @@ export interface ContentIdea {
 
 export interface GeneratedContent {
   ideas: ContentIdea[];
-  selectedContent?: string;
+  selectedContent?: string | any; // Support both old string format and new enhanced format
 }
 
 export const ContentGenerator: React.FC = () => {
@@ -53,7 +53,7 @@ export const ContentGenerator: React.FC = () => {
     setIsGenerating(true);
     
     try {
-      const ideas = await aiService.generateContentIdeas(request);
+      const ideas = await enhancedAIService.generateContentIdeasWithInsights(request);
       setGeneratedContent({ ideas });
       setActiveTab('preview');
     } catch (error) {
@@ -75,7 +75,7 @@ export const ContentGenerator: React.FC = () => {
     setIsGenerating(true);
     
     try {
-      const detailedContent = await aiService.generateDetailedContent(idea, contentRequest);
+      const detailedContent = await enhancedAIService.generateEnhancedDetailedContent(idea, contentRequest);
       setGeneratedContent(prev => prev ? {
         ...prev,
         selectedContent: detailedContent
