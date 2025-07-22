@@ -53,7 +53,13 @@ export const ContentGenerator: React.FC = () => {
     setIsGenerating(true);
     
     try {
-      const ideas = await enhancedAIService.generateContentIdeasWithInsights(request);
+      const ideas = await enhancedAIService.generateContentIdeasWithInsights(
+        request,
+        (stage) => {
+          // Progress callback sẽ được hiển thị trong ContentPreview
+          console.log('Progress:', stage);
+        }
+      );
       setGeneratedContent({ ideas });
       setActiveTab('preview');
     } catch (error) {
@@ -75,7 +81,14 @@ export const ContentGenerator: React.FC = () => {
     setIsGenerating(true);
     
     try {
-      const detailedContent = await enhancedAIService.generateEnhancedDetailedContent(idea, contentRequest);
+      const detailedContent = await enhancedAIService.generateEnhancedDetailedContent(
+        idea, 
+        contentRequest,
+        (stage) => {
+          // Progress callback để hiển thị tiến trình
+          console.log('Detailed content progress:', stage);
+        }
+      );
       setGeneratedContent(prev => prev ? {
         ...prev,
         selectedContent: detailedContent

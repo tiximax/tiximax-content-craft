@@ -84,33 +84,46 @@ export class EnhancedAIService {
     this.config = config;
   }
 
-  async generateContentIdeasWithInsights(request: ContentRequest): Promise<ContentIdea[]> {
+  async generateContentIdeasWithInsights(
+    request: ContentRequest, 
+    onProgress?: (stage: string) => void
+  ): Promise<ContentIdea[]> {
     if (!this.config?.geminiApiKey || !this.config?.openaiApiKey) {
       throw new Error('Vui lòng cấu hình đầy đủ API keys cho cả Gemini và OpenAI trong phần Settings');
     }
 
     // Step 1: Gemini nghiên cứu thị trường
+    onProgress?.('🔍 Gemini đang nghiên cứu xu hướng thị trường...');
     const marketInsights = await this.getMarketInsightsFromGemini(request);
     
     // Step 2: OpenAI sáng tạo ý tưởng dựa trên insights + channel config
+    onProgress?.('💡 OpenAI đang tạo ý tưởng dựa trên insights...');
     const channelConfig = getChannelConfigByName(request.channel);
     const ideas = await this.generateIdeasWithOpenAI(request, marketInsights, channelConfig);
     
+    onProgress?.('✅ Hoàn tất phân tích và tạo ý tưởng!');
     return ideas;
   }
 
-  async generateEnhancedDetailedContent(idea: ContentIdea, request: ContentRequest): Promise<EnhancedContentOutput> {
+  async generateEnhancedDetailedContent(
+    idea: ContentIdea, 
+    request: ContentRequest,
+    onProgress?: (stage: string) => void
+  ): Promise<EnhancedContentOutput> {
     if (!this.config?.geminiApiKey || !this.config?.openaiApiKey) {
       throw new Error('Vui lòng cấu hình đầy đủ API keys cho cả Gemini và OpenAI');
     }
 
     // Step 1: Gemini cập nhật insights mới nhất cho idea cụ thể
+    onProgress?.('🎯 Gemini đang nghiên cứu insights cho ý tưởng cụ thể...');
     const specificInsights = await this.getSpecificInsightsFromGemini(idea, request);
     
     // Step 2: OpenAI tạo nội dung với format chuẩn
+    onProgress?.('✍️ OpenAI đang tạo nội dung theo chuẩn chuyên gia...');
     const channelConfig = getChannelConfigByName(request.channel);
     const enhancedContent = await this.createEnhancedContentWithOpenAI(idea, request, specificInsights, channelConfig);
     
+    onProgress?.('🎨 Đang tối ưu nội dung theo cấu hình kênh...');
     return enhancedContent;
   }
 

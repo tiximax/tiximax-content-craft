@@ -3,10 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Copy, Download, Eye, Lightbulb, Target, Users, MessageSquare, ArrowRight, Image, Zap } from 'lucide-react';
+import { Loader2, Copy, Download, Eye, Lightbulb, Target, Users, MessageSquare, ArrowRight, Image, Zap, Clock, Search, Cog } from 'lucide-react';
 import { ContentRequest, ContentIdea, GeneratedContent } from './ContentGenerator';
+import { ContentFeedback } from './ContentFeedback';
 import { useToast } from '@/hooks/use-toast';
 import { aiService } from '@/lib/ai-service';
+import { FeedbackSystem } from '@/lib/feedback-system';
 
 interface ContentPreviewProps {
   contentRequest: ContentRequest | null;
@@ -29,9 +31,18 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
   const [isBulkGenerating, setIsBulkGenerating] = React.useState(false);
   const [bulkContent, setBulkContent] = React.useState<{ [key: string]: string }>({});
   const [showBulkResults, setShowBulkResults] = React.useState(false);
+  const [loadingStage, setLoadingStage] = React.useState('');
+  const [showFeedback, setShowFeedback] = React.useState(false);
 
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
+    
+    // Track analytics
+    if (generatedContent?.selectedContent) {
+      const contentId = `content_${Date.now()}`;
+      FeedbackSystem.updateAnalytics(contentId, 'copy');
+    }
+    
     toast({
       title: "Đã sao chép!",
       description: "Nội dung đã được sao chép vào clipboard.",
@@ -48,6 +59,12 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    
+    // Track analytics
+    if (generatedContent?.selectedContent) {
+      const contentId = `content_${Date.now()}`;
+      FeedbackSystem.updateAnalytics(contentId, 'download');
+    }
     
     toast({
       title: "Đã tải xuống!",
@@ -83,10 +100,26 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
     if (!generatedContent?.ideas || !contentRequest) return;
     
     setIsBulkGenerating(true);
+    
     try {
+      // Hiển thị trạng thái chi tiết
+      const stages = [
+        "Đang phân tích insights từ Gemini...",
+        "Đang tạo nội dung với OpenAI...", 
+        "Đang tối ưu theo cấu hình kênh...",
+        "Đang kiểm tra chất lượng nội dung...",
+        "Hoàn tất!"
+      ];
+      
+      for (let i = 0; i < stages.length - 1; i++) {
+        setLoadingStage(stages[i]);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
       const results = await aiService.generateBulkContent(generatedContent.ideas, contentRequest);
       setBulkContent(results);
       setShowBulkResults(true);
+      setLoadingStage(stages[stages.length - 1]);
       
       toast({
         title: "Tạo nội dung đồng loạt thành công!",
@@ -100,6 +133,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
       });
     } finally {
       setIsBulkGenerating(false);
+      setLoadingStage('');
     }
   };
 
@@ -295,6 +329,14 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                   )}
                   Tạo ảnh
                 </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowFeedback(!showFeedback)}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Đánh giá
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -321,6 +363,23 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                   {generatedContent.selectedContent}
                 </pre>
               </div>
+
+              {/* Content Feedback */}
+              {showFeedback && (
+                <ContentFeedback
+                  contentId={`content_${selectedIdea?.id || Date.now()}`}
+                  content={typeof generatedContent.selectedContent === 'string' ? generatedContent.selectedContent : JSON.stringify(generatedContent.selectedContent)}
+                  channelType={contentRequest?.channel || ''}
+                  targetAudience={selectedIdea?.targetSegment || ''}
+                  onFeedbackSubmitted={(feedback) => {
+                    toast({
+                      title: "Cảm ơn feedback!",
+                      description: "Đánh giá của bạn sẽ giúp AI cải thiện chất lượng.",
+                    });
+                    setShowFeedback(false);
+                  }}
+                />
+              )}
             </div>
           </CardContent>
         </Card>
@@ -380,20 +439,63 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
         </Card>
       )}
 
-      {/* Loading State */}
-      {isLoading && (
+      {/* Enhanced Loading State */}
+      {(isLoading || isBulkGenerating) && (
         <Card className="shadow-card">
           <CardContent className="p-12 text-center">
-            <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary mb-4" />
+            <div className="flex justify-center mb-4">
+              {isBulkGenerating ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <Zap className="w-6 h-6 text-yellow-500" />
+                  <Cog className="w-6 h-6 animate-spin text-blue-500" />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Search className="w-8 h-8 text-primary animate-pulse" />
+                  <Clock className="w-6 h-6 text-blue-500" />
+                </div>
+              )}
+            </div>
+            
             <h3 className="text-xl font-semibold mb-2">
-              {generatedContent ? 'Đang tạo nội dung chi tiết...' : 'AI đang phân tích và tạo ý tưởng...'}
+              {isBulkGenerating ? 'Đang tạo nội dung đồng loạt...' : 
+               generatedContent ? 'Đang tạo nội dung chi tiết...' : 
+               'AI đang nghiên cứu xu hướng thị trường...'}
             </h3>
-            <p className="text-muted-foreground">
-              {generatedContent ? 
-                'Vui lòng đợi trong giây lát, AI đang viết nội dung dựa trên insight khách hàng Tiximax.' :
-                'Hệ thống đang phân tích thông tin và tạo ra các ý tưởng phù hợp với chân dung khách hàng.'
-              }
+            
+            <p className="text-muted-foreground mb-4">
+              {loadingStage || (
+                isBulkGenerating ? 'Vui lòng đợi, AI đang xử lý tất cả ý tưởng...' :
+                generatedContent ? 'Gemini đang cung cấp insights mới nhất, OpenAI đang sáng tạo nội dung...' :
+                'Hệ thống đang phân tích xu hướng và tạo ý tưởng phù hợp với target audience.'
+              )}
             </p>
+
+            {/* Progress indicator */}
+            <div className="max-w-md mx-auto">
+              <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                <span className={isLoading && !generatedContent ? 'text-primary font-medium' : ''}>
+                  Nghiên cứu
+                </span>
+                <span className={isLoading && generatedContent ? 'text-primary font-medium' : ''}>
+                  Sáng tạo
+                </span>
+                <span className={isBulkGenerating ? 'text-primary font-medium' : ''}>
+                  Tối ưu
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-primary h-2 rounded-full transition-all duration-1000"
+                  style={{
+                    width: isLoading && !generatedContent ? '33%' : 
+                           isLoading && generatedContent ? '66%' : 
+                           isBulkGenerating ? '100%' : '0%'
+                  }}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
