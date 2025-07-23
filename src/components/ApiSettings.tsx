@@ -29,6 +29,8 @@ export const ApiSettings: React.FC = () => {
   // Load saved settings
   useEffect(() => {
     const savedConfig = localStorage.getItem('ai-config');
+    const savedEnhancedConfig = localStorage.getItem('enhanced-ai-config');
+    
     if (savedConfig) {
       try {
         const config: AIConfig = JSON.parse(savedConfig);
@@ -44,6 +46,19 @@ export const ApiSettings: React.FC = () => {
         console.error('Failed to load AI config:', error);
       }
     }
+
+    if (savedEnhancedConfig) {
+      try {
+        const enhancedConfig: EnhancedAIConfig = JSON.parse(savedEnhancedConfig);
+        setOpenaiKey(enhancedConfig.openaiApiKey);
+        setGeminiKey(enhancedConfig.geminiApiKey);
+        setOpenaiModel(enhancedConfig.openaiModel);
+        setGeminiModel(enhancedConfig.geminiModel);
+        enhancedAIService.setConfig(enhancedConfig);
+      } catch (error) {
+        console.error('Failed to load enhanced AI config:', error);
+      }
+    }
   }, []);
 
   // Set default model when provider changes
@@ -56,30 +71,60 @@ export const ApiSettings: React.FC = () => {
   }, [selectedProvider, selectedModel]);
 
   const handleSaveConfig = () => {
-    const currentKey = selectedProvider === 'openai' ? openaiKey : geminiKey;
-    
-    if (!currentKey || !selectedModel) {
+    if (useEnhancedMode) {
+      // Enhanced mode: cần cả 2 API keys
+      if (!openaiKey || !geminiKey) {
+        toast({
+          title: "Thiếu thông tin",
+          description: "Enhanced Mode cần cả OpenAI và Gemini API keys",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const enhancedConfig: EnhancedAIConfig = {
+        researchProvider: 'gemini',
+        contentProvider: 'openai',
+        geminiApiKey: geminiKey,
+        openaiApiKey: openaiKey,
+        geminiModel: geminiModel,
+        openaiModel: openaiModel
+      };
+
+      localStorage.setItem('enhanced-ai-config', JSON.stringify(enhancedConfig));
+      enhancedAIService.setConfig(enhancedConfig);
+      
       toast({
-        title: "Thiếu thông tin",
-        description: "Vui lòng điền API key và chọn model",
-        variant: "destructive"
+        title: "✨ Enhanced Mode đã được lưu",
+        description: `Gemini ${AI_MODELS_ENHANCED.gemini[geminiModel as keyof typeof AI_MODELS_ENHANCED.gemini]} + OpenAI ${AI_MODELS_ENHANCED.openai[openaiModel as keyof typeof AI_MODELS_ENHANCED.openai]}`,
       });
-      return;
+    } else {
+      // Single mode: chỉ cần 1 API key
+      const currentKey = selectedProvider === 'openai' ? openaiKey : geminiKey;
+      
+      if (!currentKey || !selectedModel) {
+        toast({
+          title: "Thiếu thông tin",
+          description: "Vui lòng điền API key và chọn model",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const config: AIConfig = {
+        provider: selectedProvider,
+        model: selectedModel,
+        apiKey: currentKey
+      };
+
+      localStorage.setItem('ai-config', JSON.stringify(config));
+      aiService.setConfig(config);
+      
+      toast({
+        title: "Đã lưu cấu hình",
+        description: `Sử dụng ${AI_MODELS[selectedProvider][selectedModel as keyof typeof AI_MODELS[typeof selectedProvider]]}`,
+      });
     }
-
-    const config: AIConfig = {
-      provider: selectedProvider,
-      model: selectedModel,
-      apiKey: currentKey
-    };
-
-    localStorage.setItem('ai-config', JSON.stringify(config));
-    aiService.setConfig(config);
-    
-    toast({
-      title: "Đã lưu cấu hình",
-      description: `Sử dụng ${AI_MODELS[selectedProvider][selectedModel as keyof typeof AI_MODELS[typeof selectedProvider]]}`,
-    });
   };
 
   const handleTestConnection = async () => {
@@ -170,6 +215,31 @@ export const ApiSettings: React.FC = () => {
         </CardHeader>
       </Card>
 
+      {/* Enhanced Mode Toggle */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <CardTitle className="text-lg">Enhanced Mode</CardTitle>
+            </div>
+            <Button 
+              variant={useEnhancedMode ? "default" : "outline"}
+              onClick={() => setUseEnhancedMode(!useEnhancedMode)}
+              className="ml-auto"
+            >
+              {useEnhancedMode ? "BẬT" : "TẮT"}
+            </Button>
+          </div>
+          <CardDescription>
+            {useEnhancedMode 
+              ? "🚀 Sử dụng kết hợp Gemini (research) + OpenAI (content) để tạo nội dung chất lượng cao nhất"
+              : "Sử dụng 1 AI provider duy nhất"
+            }
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
       {/* Security Notice */}
       <Alert>
         <Shield className="h-4 w-4" />
@@ -180,118 +250,229 @@ export const ApiSettings: React.FC = () => {
       </Alert>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Provider Selection */}
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="provider">Chọn AI Provider</Label>
-            <Select value={selectedProvider} onValueChange={(value: 'openai' | 'gemini') => setSelectedProvider(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn provider" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="gemini">Google Gemini</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="model">Chọn Model</Label>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn model" />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedProvider === 'openai' ? (
-                  Object.entries(AI_MODELS.openai).map(([key, name]) => (
-                    <SelectItem key={key} value={key}>{name}</SelectItem>
-                  ))
-                ) : (
-                  Object.entries(AI_MODELS.gemini).map(([key, name]) => (
-                    <SelectItem key={key} value={key}>{name}</SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* API Key Input */}
-        <div className="space-y-4">
-          {selectedProvider === 'openai' ? (
-            <div>
-              <Label htmlFor="openai-key">OpenAI API Key</Label>
-              <Input
-                id="openai-key"
-                type="password"
-                placeholder="sk-..."
-                value={openaiKey}
-                onChange={(e) => setOpenaiKey(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Lấy API Key tại <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenAI Platform</a>
-              </p>
+        {useEnhancedMode ? (
+          /* Enhanced Mode: Show both APIs */
+          <>
+            {/* OpenAI Configuration */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary">Content Provider</Badge>
+                <span className="text-sm font-medium">OpenAI</span>
+              </div>
               
-              <div className="mt-3">
-                <Button 
-                  onClick={handleTestConnection}
-                  disabled={!openaiKey || isTestingConnection}
-                  className="w-full"
-                >
-                  {isTestingConnection ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <TestTube className="mr-2 h-4 w-4" />
-                  )}
-                  Test Connection
-                </Button>
-                
-                {testResults.openai && (
-                  <div className="flex items-center space-x-2 mt-2">
-                    {getStatusIcon(testResults.openai.status)}
-                    <span className="text-sm">{testResults.openai.message}</span>
-                  </div>
-                )}
+              <div>
+                <Label htmlFor="openai-model">OpenAI Model</Label>
+                <Select value={openaiModel} onValueChange={setOpenaiModel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn OpenAI model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(AI_MODELS_ENHANCED.openai).map(([key, name]) => (
+                      <SelectItem key={key} value={key}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="openai-key">OpenAI API Key</Label>
+                <Input
+                  id="openai-key"
+                  type="password"
+                  placeholder="sk-..."
+                  value={openaiKey}
+                  onChange={(e) => setOpenaiKey(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lấy API Key tại <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenAI Platform</a>
+                </p>
               </div>
             </div>
-          ) : (
-            <div>
-              <Label htmlFor="gemini-key">Gemini API Key</Label>
-              <Input
-                id="gemini-key"
-                type="password"
-                placeholder="AI..."
-                value={geminiKey}
-                onChange={(e) => setGeminiKey(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Lấy API Key tại <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
-              </p>
+
+            {/* Gemini Configuration */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary">Research Provider</Badge>
+                <span className="text-sm font-medium">Gemini</span>
+              </div>
               
-              <div className="mt-3">
-                <Button 
-                  onClick={handleTestConnection}
-                  disabled={!geminiKey || isTestingConnection}
-                  className="w-full"
-                >
-                  {isTestingConnection ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <TestTube className="mr-2 h-4 w-4" />
-                  )}
-                  Test Connection
-                </Button>
-                
-                {testResults.gemini && (
-                  <div className="flex items-center space-x-2 mt-2">
-                    {getStatusIcon(testResults.gemini.status)}
-                    <span className="text-sm">{testResults.gemini.message}</span>
-                  </div>
-                )}
+              <div>
+                <Label htmlFor="gemini-model">Gemini Model</Label>
+                <Select value={geminiModel} onValueChange={setGeminiModel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn Gemini model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(AI_MODELS_ENHANCED.gemini).map(([key, name]) => (
+                      <SelectItem key={key} value={key}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="gemini-key">Gemini API Key</Label>
+                <Input
+                  id="gemini-key"
+                  type="password"
+                  placeholder="AI..."
+                  value={geminiKey}
+                  onChange={(e) => setGeminiKey(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lấy API Key tại <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
+                </p>
               </div>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          /* Single Mode: Original logic */
+          <>
+            {/* Provider Selection */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="provider">Chọn AI Provider</Label>
+                <Select value={selectedProvider} onValueChange={(value: 'openai' | 'gemini') => setSelectedProvider(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="gemini">Google Gemini</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="model">Chọn Model</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedProvider === 'openai' ? (
+                      Object.entries(AI_MODELS.openai).map(([key, name]) => (
+                        <SelectItem key={key} value={key}>{name}</SelectItem>
+                      ))
+                    ) : (
+                      Object.entries(AI_MODELS.gemini).map(([key, name]) => (
+                        <SelectItem key={key} value={key}>{name}</SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </>
+        )}
+
+        {!useEnhancedMode && (
+          /* API Key Input for Single Mode */
+          <div className="space-y-4">
+            {selectedProvider === 'openai' ? (
+              <div>
+                <Label htmlFor="openai-key">OpenAI API Key</Label>
+                <Input
+                  id="openai-key"
+                  type="password"
+                  placeholder="sk-..."
+                  value={openaiKey}
+                  onChange={(e) => setOpenaiKey(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lấy API Key tại <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenAI Platform</a>
+                </p>
+                
+                <div className="mt-3">
+                  <Button 
+                    onClick={handleTestConnection}
+                    disabled={!openaiKey || isTestingConnection}
+                    className="w-full"
+                  >
+                    {isTestingConnection ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <TestTube className="mr-2 h-4 w-4" />
+                    )}
+                    Test Connection
+                  </Button>
+                  
+                  {testResults.openai && (
+                    <div className="flex items-center space-x-2 mt-2">
+                      {getStatusIcon(testResults.openai.status)}
+                      <span className="text-sm">{testResults.openai.message}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="gemini-key">Gemini API Key</Label>
+                <Input
+                  id="gemini-key"
+                  type="password"
+                  placeholder="AI..."
+                  value={geminiKey}
+                  onChange={(e) => setGeminiKey(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lấy API Key tại <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
+                </p>
+                
+                <div className="mt-3">
+                  <Button 
+                    onClick={handleTestConnection}
+                    disabled={!geminiKey || isTestingConnection}
+                    className="w-full"
+                  >
+                    {isTestingConnection ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <TestTube className="mr-2 h-4 w-4" />
+                    )}
+                    Test Connection
+                  </Button>
+                  
+                  {testResults.gemini && (
+                    <div className="flex items-center space-x-2 mt-2">
+                      {getStatusIcon(testResults.gemini.status)}
+                      <span className="text-sm">{testResults.gemini.message}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Test Connections for Enhanced Mode */}
+        {useEnhancedMode && (
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button 
+              onClick={() => {
+                setSelectedProvider('openai');
+                handleTestConnection();
+              }}
+              disabled={!openaiKey || isTestingConnection}
+              variant="outline"
+            >
+              <TestTube className="mr-2 h-4 w-4" />
+              Test OpenAI
+            </Button>
+            
+            <Button 
+              onClick={() => {
+                setSelectedProvider('gemini');
+                handleTestConnection();
+              }}
+              disabled={!geminiKey || isTestingConnection}
+              variant="outline"
+            >
+              <TestTube className="mr-2 h-4 w-4" />
+              Test Gemini
+            </Button>
+          </div>
+        )}
 
         {/* Save Configuration */}
         <div className="md:col-span-2">
@@ -300,8 +481,8 @@ export const ApiSettings: React.FC = () => {
             className="w-full"
             variant="default"
           >
-            <Settings className="mr-2 h-4 w-4" />
-            Lưu cấu hình AI
+            {useEnhancedMode ? <Sparkles className="mr-2 h-4 w-4" /> : <Settings className="mr-2 h-4 w-4" />}
+            {useEnhancedMode ? "Lưu Enhanced Mode" : "Lưu cấu hình AI"}
           </Button>
         </div>
       </div>
