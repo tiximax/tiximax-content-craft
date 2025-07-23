@@ -53,15 +53,32 @@ export const ContentGenerator: React.FC = () => {
     setIsGenerating(true);
     
     try {
+      const enhancedConfig = localStorage.getItem('enhanced-ai-config');
+      if (!enhancedConfig) {
+        throw new Error('Vui lòng cấu hình Enhanced Mode trong Settings trước');
+      }
+      
+      const config = JSON.parse(enhancedConfig);
+      enhancedAIService.setConfig(config);
+      
       const ideas = await enhancedAIService.generateContentIdeasWithInsights(
         request,
         (stage) => {
-          // Progress callback sẽ được hiển thị trong ContentPreview
           console.log('Progress:', stage);
         }
       );
+      
+      if (!ideas || ideas.length === 0) {
+        throw new Error('Không nhận được ý tưởng nào từ AI');
+      }
+      
       setGeneratedContent({ ideas });
       setActiveTab('preview');
+      
+      toast({
+        title: "Thành công",
+        description: `Đã tạo ${ideas.length} ý tưởng nội dung`,
+      });
     } catch (error) {
       console.error('Error generating content:', error);
       toast({
@@ -81,18 +98,35 @@ export const ContentGenerator: React.FC = () => {
     setIsGenerating(true);
     
     try {
+      const enhancedConfig = localStorage.getItem('enhanced-ai-config');
+      if (!enhancedConfig) {
+        throw new Error('Vui lòng cấu hình Enhanced Mode trong Settings');
+      }
+      
+      const config = JSON.parse(enhancedConfig);
+      enhancedAIService.setConfig(config);
+      
       const detailedContent = await enhancedAIService.generateEnhancedDetailedContent(
         idea, 
         contentRequest,
         (stage) => {
-          // Progress callback để hiển thị tiến trình
           console.log('Detailed content progress:', stage);
         }
       );
+      
+      if (!detailedContent) {
+        throw new Error('Không nhận được nội dung chi tiết từ AI');
+      }
+      
       setGeneratedContent(prev => prev ? {
         ...prev,
         selectedContent: detailedContent
       } : null);
+      
+      toast({
+        title: "Thành công", 
+        description: "Đã tạo nội dung chi tiết",
+      });
     } catch (error) {
       console.error('Error generating detailed content:', error);
       toast({

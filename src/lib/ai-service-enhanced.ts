@@ -309,7 +309,27 @@ Trả về JSON array:
       }),
     });
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      let errorMessage = 'Lỗi OpenAI không xác định';
+      
+      if (response.status === 429) {
+        errorMessage = 'OpenAI quota đã hết. Vui lòng kiểm tra billing hoặc thử lại sau.';
+      } else if (response.status === 401) {
+        errorMessage = 'OpenAI API key không hợp lệ.';
+      } else if (errorData.error?.message) {
+        errorMessage = errorData.error.message;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
     const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Response từ OpenAI không hợp lệ');
+    }
+    
     const content = data.choices[0].message.content;
     
     try {
@@ -319,6 +339,7 @@ Trả về JSON array:
       }
     } catch (error) {
       console.error('Failed to parse OpenAI ideas response:', error);
+      throw new Error('Không thể parse response từ OpenAI');
     }
     
     // Fallback ideas
@@ -496,7 +517,27 @@ VIẾT BÀI POST theo format JSON:
       }),
     });
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      let errorMessage = 'Lỗi OpenAI không xác định';
+      
+      if (response.status === 429) {
+        errorMessage = 'OpenAI quota đã hết. Vui lòng kiểm tra billing hoặc đổi API key khác.';
+      } else if (response.status === 401) {
+        errorMessage = 'OpenAI API key không hợp lệ.';
+      } else if (errorData.error?.message) {
+        errorMessage = errorData.error.message;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
     const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Response từ OpenAI không hợp lệ');
+    }
+    
     const content = data.choices[0].message.content;
     
     try {
@@ -511,6 +552,7 @@ VIẾT BÀI POST theo format JSON:
       }
     } catch (error) {
       console.error('Failed to parse enhanced content response:', error);
+      throw new Error('Không thể parse nội dung từ OpenAI');
     }
     
     // Fallback response
