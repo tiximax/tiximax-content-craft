@@ -300,7 +300,12 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => handleCopy(generatedContent.selectedContent!)}
+                  onClick={() => {
+                    const content = typeof generatedContent.selectedContent === 'string' 
+                      ? generatedContent.selectedContent 
+                      : JSON.stringify(generatedContent.selectedContent, null, 2);
+                    handleCopy(content);
+                  }}
                 >
                   <Copy className="w-4 h-4 mr-2" />
                   Sao chép
@@ -308,10 +313,12 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => handleDownload(
-                    generatedContent.selectedContent!, 
-                    `tiximax-content-${Date.now()}.txt`
-                  )}
+                  onClick={() => {
+                    const content = typeof generatedContent.selectedContent === 'string' 
+                      ? generatedContent.selectedContent 
+                      : JSON.stringify(generatedContent.selectedContent, null, 2);
+                    handleDownload(content, `tiximax-content-${Date.now()}.txt`);
+                  }}
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Tải xuống
@@ -359,9 +366,150 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
               
               {/* Generated Content */}
               <div className="bg-muted/30 rounded-lg p-6 border">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                  {generatedContent.selectedContent}
-                </pre>
+                {typeof generatedContent.selectedContent === 'string' ? (
+                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                    {generatedContent.selectedContent}
+                  </pre>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Enhanced Content Display */}
+                    {generatedContent.selectedContent?.content_type && (
+                      <div className="mb-4">
+                        <Badge variant="secondary" className="mb-2">
+                          {generatedContent.selectedContent.content_type}
+                        </Badge>
+                        <Badge variant="outline" className="ml-2">
+                          {generatedContent.selectedContent.channel_selected}
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Social Media Post */}
+                    {generatedContent.selectedContent?.title_suggestions && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Gợi ý tiêu đề:</h4>
+                        <ul className="list-disc list-inside space-y-1 mb-4">
+                          {generatedContent.selectedContent.title_suggestions.map((title: string, index: number) => (
+                            <li key={index} className="text-sm">{title}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {generatedContent.selectedContent?.body_content && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Nội dung:</h4>
+                        <div className="bg-white p-4 rounded border">
+                          <pre className="whitespace-pre-wrap font-sans text-sm">
+                            {generatedContent.selectedContent.body_content}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Video Script */}
+                    {generatedContent.selectedContent?.video_title_idea && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Tiêu đề Video:</h4>
+                        <p className="text-sm mb-4 p-3 bg-primary/10 rounded">{generatedContent.selectedContent.video_title_idea}</p>
+                        
+                        {generatedContent.selectedContent.script_scenes && (
+                          <div>
+                            <h4 className="font-semibold mb-2">Kịch bản:</h4>
+                            <div className="space-y-3">
+                              {generatedContent.selectedContent.script_scenes.map((scene: any, index: number) => (
+                                <div key={index} className="border rounded p-3">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Badge variant="outline">{scene.scene_id}</Badge>
+                                    <span className="text-xs text-muted-foreground">{scene.duration_seconds}s</span>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                      <strong>Visual:</strong> {scene.visual_description}
+                                    </div>
+                                    <div>
+                                      <strong>Audio:</strong> {scene.audio_description}
+                                    </div>
+                                    <div className="md:col-span-2">
+                                      <strong>Lời thoại:</strong> {scene.voice_over_vietnamese}
+                                    </div>
+                                    {scene.text_overlay && (
+                                      <div className="md:col-span-2">
+                                        <strong>Text overlay:</strong> {scene.text_overlay}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Blog Post */}
+                    {generatedContent.selectedContent?.title && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Tiêu đề Blog:</h4>
+                        <p className="text-lg font-medium mb-4 p-3 bg-primary/10 rounded">
+                          {generatedContent.selectedContent.title}
+                        </p>
+                      </div>
+                    )}
+
+                    {generatedContent.selectedContent?.full_content_draft && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Nội dung đầy đủ:</h4>
+                        <div className="bg-white p-4 rounded border max-h-96 overflow-y-auto">
+                          <pre className="whitespace-pre-wrap font-sans text-sm">
+                            {generatedContent.selectedContent.full_content_draft}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Common Elements */}
+                    {generatedContent.selectedContent?.call_to_action && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Call to Action:</h4>
+                        <p className="text-sm font-medium text-primary p-2 bg-primary/10 rounded">
+                          {generatedContent.selectedContent.call_to_action}
+                        </p>
+                      </div>
+                    )}
+
+                    {generatedContent.selectedContent?.hashtags && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Hashtags:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {generatedContent.selectedContent.hashtags.map((tag: string, index: number) => (
+                            <Badge key={index} variant="secondary">{tag}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {generatedContent.selectedContent?.keywords_for_seo && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Keywords SEO:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {generatedContent.selectedContent.keywords_for_seo.map((keyword: string, index: number) => (
+                            <Badge key={index} variant="outline">{keyword}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {generatedContent.selectedContent?.notes_for_user && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Ghi chú:</h4>
+                        <p className="text-sm text-muted-foreground p-3 bg-muted/50 rounded">
+                          {generatedContent.selectedContent.notes_for_user}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Content Feedback */}
