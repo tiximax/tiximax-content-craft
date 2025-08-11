@@ -2,14 +2,13 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Loader2, Copy, Download, Eye, Lightbulb, Target, Users, MessageSquare, ArrowRight, Image, Zap, Clock, Search, Cog, Palette, Wand2 } from 'lucide-react';
+import { Loader2, Copy, Download, Eye, Lightbulb, Target, MessageSquare, ArrowRight } from 'lucide-react';
 import { ContentRequest, ContentIdea, GeneratedContent } from './ContentGenerator';
 import { ContentFeedback } from './ContentFeedback';
 import { useToast } from '@/hooks/use-toast';
-import { aiService } from '@/lib/ai-service';
 import { FeedbackSystem } from '@/lib/feedback-system';
-import { ImagePromptGenerator, GeneratedImagePrompt, ImagePromptOptions } from '@/lib/image-prompt-generator';
+import { ImageGenerator } from './ImageGenerator';
+import { BulkContentPreview } from './BulkContentPreview';
 
 interface ContentPreviewProps {
   contentRequest: ContentRequest | null;
@@ -27,16 +26,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
   onIdeaSelect
 }) => {
   const { toast } = useToast();
-  const [isGeneratingImage, setIsGeneratingImage] = React.useState(false);
-  const [generatedImageUrl, setGeneratedImageUrl] = React.useState<string | null>(null);
-  const [isBulkGenerating, setIsBulkGenerating] = React.useState(false);
-  const [bulkContent, setBulkContent] = React.useState<{ [key: string]: string }>({});
-  const [showBulkResults, setShowBulkResults] = React.useState(false);
-  const [loadingStage, setLoadingStage] = React.useState('');
   const [showFeedback, setShowFeedback] = React.useState(false);
-  const [imagePrompts, setImagePrompts] = React.useState<GeneratedImagePrompt[]>([]);
-  const [showImagePrompts, setShowImagePrompts] = React.useState(false);
-  const [isGeneratingPrompts, setIsGeneratingPrompts] = React.useState(false);
 
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
@@ -74,144 +64,6 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
       title: "Đã tải xuống!",
       description: "File nội dung đã được tải về máy.",
     });
-  };
-
-  const handleGenerateImage = async () => {
-    if (!selectedIdea) return;
-    
-    setIsGeneratingImage(true);
-    try {
-      const imagePrompt = `${selectedIdea.title} - ${selectedIdea.coreContent}`;
-      const imageUrl = await aiService.generateContentImage(imagePrompt);
-      setGeneratedImageUrl(imageUrl);
-      
-      toast({
-        title: "Tạo ảnh thành công!",
-        description: "Ảnh minh họa cho nội dung đã được tạo.",
-      });
-    } catch (error) {
-      toast({
-        title: "Lỗi tạo ảnh",
-        description: error instanceof Error ? error.message : "Không thể tạo ảnh",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
-
-  const handleBulkGenerate = async () => {
-    if (!generatedContent?.ideas || !contentRequest) return;
-    
-    setIsBulkGenerating(true);
-    
-    try {
-      // Hiển thị trạng thái chi tiết
-      const stages = [
-        "Đang phân tích insights từ Gemini...",
-        "Đang tạo nội dung với OpenAI...", 
-        "Đang tối ưu theo cấu hình kênh...",
-        "Đang kiểm tra chất lượng nội dung...",
-        "Hoàn tất!"
-      ];
-      
-      for (let i = 0; i < stages.length - 1; i++) {
-        setLoadingStage(stages[i]);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      const results = await aiService.generateBulkContent(generatedContent.ideas, contentRequest);
-      setBulkContent(results);
-      setShowBulkResults(true);
-      setLoadingStage(stages[stages.length - 1]);
-      
-      toast({
-        title: "Tạo nội dung đồng loạt thành công!",
-        description: `Đã tạo ${Object.keys(results).length} nội dung hoàn thiện.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Lỗi tạo nội dung đồng loạt",
-        description: error instanceof Error ? error.message : "Không thể tạo nội dung",
-        variant: "destructive"
-      });
-    } finally {
-      setIsBulkGenerating(false);
-      setLoadingStage('');
-    }
-  };
-
-  const handleGenerateImagePrompts = async () => {
-    if (!generatedContent?.selectedContent && !selectedIdea) return;
-    
-    setIsGeneratingPrompts(true);
-    
-    try {
-      // Generate main prompt
-      const mainPrompt = ImagePromptGenerator.generateImagePrompt(
-        generatedContent?.selectedContent,
-        selectedIdea || undefined,
-        {
-          style: 'professional',
-          aspectRatio: '16:9',
-          quality: 'high',
-          brandColors: true
-        }
-      );
-
-      // Generate variations for different use cases
-      const variations = [
-        // Social Media optimized
-        ImagePromptGenerator.generateImagePrompt(
-          generatedContent?.selectedContent,
-          selectedIdea || undefined,
-          {
-            style: 'vibrant',
-            aspectRatio: '1:1',
-            quality: 'high',
-            brandColors: true
-          }
-        ),
-        // Story/Vertical optimized  
-        ImagePromptGenerator.generateImagePrompt(
-          generatedContent?.selectedContent,
-          selectedIdea || undefined,
-          {
-            style: 'modern',
-            aspectRatio: '9:16',
-            quality: 'high',
-            brandColors: true
-          }
-        ),
-        // Blog/Website optimized
-        ImagePromptGenerator.generateImagePrompt(
-          generatedContent?.selectedContent,
-          selectedIdea || undefined,
-          {
-            style: 'minimalist',
-            aspectRatio: '16:9',
-            quality: 'ultra',
-            brandColors: false
-          }
-        )
-      ];
-
-      setImagePrompts([mainPrompt, ...variations]);
-      setShowImagePrompts(true);
-      
-      toast({
-        title: "Đã tạo prompt ảnh!",
-        description: "Các prompt đã được tối ưu cho GenPark và Image4",
-      });
-    } catch (error) {
-      toast({
-        title: "Lỗi tạo prompt ảnh",
-        description: error instanceof Error ? error.message : "Không thể tạo prompt",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGeneratingPrompts(false);
-    }
   };
 
   if (!contentRequest) {
@@ -285,25 +137,6 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                   AI đã phân tích insight khách hàng và đề xuất các ý tưởng phù hợp. Chọn một ý tưởng để tạo nội dung chi tiết.
                 </CardDescription>
               </div>
-              <Button 
-                variant="hero"
-                size="sm"
-                onClick={handleBulkGenerate}
-                disabled={isBulkGenerating || isLoading}
-                className="px-4 py-2"
-              >
-                {isBulkGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Đang tạo...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4 mr-2" />
-                    Tạo đồng loạt
-                  </>
-                )}
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -357,9 +190,18 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
             </div>
           </CardContent>
         </Card>
-      )}
+        )}
 
-      {/* Generated Content */}
+        {generatedContent && (
+          <BulkContentPreview
+            generatedContent={generatedContent}
+            contentRequest={contentRequest}
+            onCopy={handleCopy}
+            onDownload={handleDownload}
+          />
+        )}
+
+        {/* Generated Content */}
       {generatedContent?.selectedContent && (
         <Card className="shadow-card">
           <CardHeader>
@@ -403,32 +245,6 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={handleGenerateImagePrompts}
-                  disabled={isGeneratingPrompts}
-                >
-                  {isGeneratingPrompts ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Wand2 className="w-4 h-4 mr-2" />
-                  )}
-                  Tạo prompt ảnh
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleGenerateImage}
-                  disabled={isGeneratingImage}
-                >
-                  {isGeneratingImage ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Image className="w-4 h-4 mr-2" />
-                  )}
-                  Tạo ảnh
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
                   onClick={() => setShowFeedback(!showFeedback)}
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
@@ -439,21 +255,6 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {/* Generated Image */}
-              {generatedImageUrl && (
-                <div className="bg-muted/30 rounded-lg p-4 border">
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <Image className="w-4 h-4" />
-                    Ảnh minh họa được tạo bởi AI
-                  </h4>
-                  <img 
-                    src={generatedImageUrl} 
-                    alt="AI Generated Content Image"
-                    className="w-full max-w-md mx-auto rounded-lg shadow-md"
-                  />
-                </div>
-              )}
-              
               {/* Generated Content */}
               <div className="bg-muted/30 rounded-lg p-6 border">
                 {typeof generatedContent.selectedContent === 'string' ? (
@@ -600,11 +401,16 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
                     )}
                   </div>
                 )}
-              </div>
+                </div>
 
-              {/* Content Feedback */}
-              {showFeedback && (
-                <ContentFeedback
+                <ImageGenerator
+                  generatedContent={generatedContent}
+                  selectedIdea={selectedIdea}
+                />
+
+                {/* Content Feedback */}
+                {showFeedback && (
+                  <ContentFeedback
                   contentId={`content_${selectedIdea?.id || Date.now()}`}
                   content={typeof generatedContent.selectedContent === 'string' ? generatedContent.selectedContent : JSON.stringify(generatedContent.selectedContent)}
                   channelType={contentRequest?.channel || ''}
@@ -623,25 +429,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
         </Card>
       )}
 
-      {/* Generated Image Prompts */}
-      {showImagePrompts && imagePrompts.length > 0 && (
-        <Card className="shadow-card">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="w-5 h-5 text-primary" />
-                  Prompt ảnh cho GenPark & Image4
-                </CardTitle>
-                <CardDescription>
-                  Các prompt đã được tối ưu cho từng loại nội dung và kích thước
-                </CardDescription>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowImagePrompts(false)}
-              >
+      {/* Generated Image Prompts */}>
                 Ẩn prompts
               </Button>
             </div>
@@ -750,34 +538,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
         </Card>
       )}
 
-      {/* Bulk Generated Content */}
-      {showBulkResults && Object.keys(bulkContent).length > 0 && (
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-primary" />
-              Nội dung được tạo đồng loạt
-            </CardTitle>
-            <CardDescription>
-              Tất cả {Object.keys(bulkContent).length} ý tưởng đã được tạo thành nội dung hoàn thiện.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {generatedContent?.ideas.map((idea) => {
-                const content = bulkContent[idea.id];
-                if (!content) return null;
-                
-                return (
-                  <div key={idea.id} className="border rounded-lg p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-lg text-primary">{idea.title}</h4>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleCopy(content)}
-                        >
+      {/* Bulk Generated Content */}>
                           <Copy className="w-4 h-4 mr-2" />
                           Sao chép
                         </Button>
@@ -805,62 +566,14 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
       )}
 
       {/* Enhanced Loading State */}
-      {(isLoading || isBulkGenerating) && (
+      {isLoading && (
         <Card className="shadow-card">
           <CardContent className="p-12 text-center">
-            <div className="flex justify-center mb-4">
-              {isBulkGenerating ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  <Zap className="w-6 h-6 text-yellow-500" />
-                  <Cog className="w-6 h-6 animate-spin text-blue-500" />
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Search className="w-8 h-8 text-primary animate-pulse" />
-                  <Clock className="w-6 h-6 text-blue-500" />
-                </div>
-              )}
-            </div>
-            
-            <h3 className="text-xl font-semibold mb-2">
-              {isBulkGenerating ? 'Đang tạo nội dung đồng loạt...' : 
-               generatedContent ? 'Đang tạo nội dung chi tiết...' : 
-               'AI đang nghiên cứu xu hướng thị trường...'}
-            </h3>
-            
-            <p className="text-muted-foreground mb-4">
-              {loadingStage || (
-                isBulkGenerating ? 'Vui lòng đợi, AI đang xử lý tất cả ý tưởng...' :
-                generatedContent ? 'Gemini đang cung cấp insights mới nhất, OpenAI đang sáng tạo nội dung...' :
-                'Hệ thống đang phân tích xu hướng và tạo ý tưởng phù hợp với target audience.'
-              )}
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Đang tạo nội dung chi tiết...</h3>
+            <p className="text-muted-foreground">
+              Gemini đang cung cấp insights mới nhất, OpenAI đang sáng tạo nội dung...
             </p>
-
-            {/* Progress indicator */}
-            <div className="max-w-md mx-auto">
-              <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                <span className={isLoading && !generatedContent ? 'text-primary font-medium' : ''}>
-                  Nghiên cứu
-                </span>
-                <span className={isLoading && generatedContent ? 'text-primary font-medium' : ''}>
-                  Sáng tạo
-                </span>
-                <span className={isBulkGenerating ? 'text-primary font-medium' : ''}>
-                  Tối ưu
-                </span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div 
-                  className="bg-primary h-2 rounded-full transition-all duration-1000"
-                  style={{
-                    width: isLoading && !generatedContent ? '33%' : 
-                           isLoading && generatedContent ? '66%' : 
-                           isBulkGenerating ? '100%' : '0%'
-                  }}
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
